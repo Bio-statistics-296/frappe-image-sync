@@ -1,0 +1,44 @@
+
+name: Sync Frappe Helpdesk to Aliyun ACR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      SOURCE_IMAGE: ghcr.io/frappe/helpdesk:v16.2.1
+      ACR_HOST: crpi-ku2s3kmgn0isdrc9.cn-hangzhou.personal.cr.aliyuncs.com
+      TARGET_IMAGE: crpi-ku2s3kmgn0isdrc9.cn-hangzhou.personal.cr.aliyuncs.com/my-frappe-296/helpdesk:v16.2.1
+
+    steps:
+      - name: Pull official Frappe image
+        run: |
+          docker pull --platform linux/amd64 "$SOURCE_IMAGE"
+
+      - name: Verify Helpdesk application
+        run: |
+          docker run --rm --entrypoint sh \
+            "$SOURCE_IMAGE" \
+            -c 'test -d /home/frappe/frappe-bench/apps/helpdesk'
+
+      - name: Login to Aliyun ACR
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        run: |
+          printf '%s' "$ACR_PASSWORD" | docker login \
+            "$ACR_HOST" \
+            --username "$ACR_USERNAME" \
+            --password-stdin
+
+      - name: Push image to Aliyun ACR
+        run: |
+          docker tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
+          docker push "$TARGET_IMAGE"
