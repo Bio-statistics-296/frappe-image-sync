@@ -1,0 +1,40 @@
+
+name: Sync MariaDB and Redis to Aliyun ACR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      ACR_HOST: crpi-ku2s3kmgn0isdrc9.cn-hangzhou.personal.cr.aliyuncs.com
+      ACR_REPO: crpi-ku2s3kmgn0isdrc9.cn-hangzhou.personal.cr.aliyuncs.com/my-frappe-296/helpdesk
+
+    steps:
+      - name: Login to Aliyun ACR
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        run: |
+          printf '%s' "$ACR_PASSWORD" | docker login \
+            "$ACR_HOST" \
+            --username "$ACR_USERNAME" \
+            --password-stdin
+
+      - name: Sync MariaDB 11.8
+        run: |
+          docker pull --platform linux/amd64 mariadb:11.8
+          docker tag mariadb:11.8 "$ACR_REPO:mariadb-11.8"
+          docker push "$ACR_REPO:mariadb-11.8"
+
+      - name: Sync Redis 8.6
+        run: |
+          docker pull --platform linux/amd64 redis:8.6-alpine
+          docker tag redis:8.6-alpine "$ACR_REPO:redis-8.6-alpine"
+          docker push "$ACR_REPO:redis-8.6-alpine"
